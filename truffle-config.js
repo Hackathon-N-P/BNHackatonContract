@@ -36,11 +36,11 @@ module.exports = {
    */
 
   networks: {
-    development: {       
-	host: "47.241.69.26",     // 区块链所在服务器主机
+    development: {
+	host: "47.241.69.26",// 区块链所在服务器主机
   //host: "192.168.1.49",       
-	port: 6789,            // 链端口号       
-	network_id: "*",       // Any network (default: none)       
+	port: 6789, // 链端口号       
+	network_id: "*",// Any network (default: none)       
 	from: "lat1hszgljlqnlly6hxcneq6v2vdnaj9hfvm7m7ccz", //部署合约账号的钱包地址       
 	//gas: 9000000,       
 	//gasPrice: 900000000004,    

@@ -51,7 +51,7 @@ struct Viewpoint
 {
     //观点消息头
     bool            point;          //支持true，反对false
-    uint64_t    ViewpointID;    //观点唯一标识
+    uint64_t        ViewpointID;    //观点唯一标识
     platon::u128    NewID;          //该观点对应的爆料标识
 
     //观点消息体
@@ -265,11 +265,26 @@ private:
     void _emit_bnmessage_event(const std::string& topic, const std::string& msg);
 
 public:
-    platon::StorageType<"BreakingNews"_n, std::list<News>>                 mBreakingNews;      //存放breaking news
-    platon::StorageType<"Users"_n, std::list<UserInfo>>                    mUsers;             //存放用户信息，这个后续再考虑下要不要
-    platon::StorageType<"NewsCount"_n, platon::u128>                       mNewsCount;         //当前已发布的news、viewpoint编号，自增用于生成唯一标识
-    platon::StorageType<"hashChain"_n, std::list<NewsHashBlock>>           mNewsHashChain;     //爆料哈希链，后续爆料信息会滚动删除，链上仅存哈希链信息用于验证信息是否真实
-    platon::StorageType<"Viewpoints"_n, std::vector<Viewpoint>>            mVP;                //用于存放观点，观点单独存，便于查找
+    // platon::StorageType<"BreakingNews"_n, std::list<News>>                 mBreakingNews
+    // platon::StorageType<"Users"_n, std::list<UserInfo>>                    mUsers;             //存放用户信息，这个后续再考虑下要不要
+    // platon::StorageType<"NewsCount"_n, platon::u128>                       mNewsCount;         //当前已发布的news、viewpoint编号，自增用于生成唯一标识
+    // platon::StorageType<"hashChain"_n, std::list<NewsHashBlock>>           mNewsHashChain;     //爆料哈希链，后续爆料信息会滚动删除，链上仅存哈希链信息用于验证信息是否真实
+    // platon::StorageType<"Viewpoints"_n, std::vector<Viewpoint>>            mVP;                //用于存放观点，观点单独存，便于查找
+
+    platon::StorageType<"NewsCount"_n, platon::u128>                        mNewsCount;         //当前已发布的news、viewpoint编号，自增用于生成唯一标识
+    platon::StorageType<"VPCount"_n, uint64_t>                          mVPCount;         //当前已发布的news、viewpoint编号，自增用于生成唯一标识
+
+    platon::db::Map<"BreakingNews"_n, platon::u128, News>                   mBreakingNews;                       
+    platon::db::Map<"Users"_n, std::string, UserInfo>                       mUsers;             //存放用户信息，这个后续再考虑下要不要
+
+    platon::db::MultiIndex<
+		"Viewpoints"_n, Viewpoint,
+		platon::db::IndexedBy<"VPID"_n, platon::db::IndexMemberFun<Viewpoint, uint64_t, &Viewpoint::ViewpointID,
+		platon::db::IndexType::UniqueIndex>>,
+		platon::db::IndexedBy<"NewsID"_n, platon::db::IndexMemberFun<Viewpoint, std::u128, &Viewpoint::NewID,
+		platon::db::IndexType::NormalIndex>>>                   
+        
+                                                                            mVP;                //用于存放观点，观点单独存，便于查找
 
 private:
     platon::StorageType<"Owner"_n, std::pair<platon::Address, bool>>       _mOwner;            //合约所有者地址，即部署者，黑客松中留个特殊权限
