@@ -145,21 +145,24 @@ std::list<UserInfo> BreakingNews::getUsers()
 std::list<News> BreakingNews::getNews()
 {
     std::list<News> News_Output;
-    for (auto newsItr = mBreakingNews.self().begin(); newsItr != mBreakingNews.self().end(); ++newsItr)
-    {
-        News curNews = *newsItr;
 
-        for (auto vpItr = mVP.self().begin(); vpItr != mVP.self().end(); ++vpItr)
+    auto news_count = mNewsCount.self();
+    for (auto i = 0; i < news_count; i++)
+    {
+        if (mBreakingNews.contains(i))
         {
-            if (curNews.NewID == vpItr->NewID)
+            News curNews = mBreakingNews[i];
+
+            auto normalIndexes = mVP.get_index<"NewsID"_n>();
+            for (auto vpItr = normalIndexes.cbegin(curNews.NewID); vpItr != normalIndexes.cend(curNews.NewID); ++vpItr)
             {
                 curNews.Viewpoints.push_back(*vpItr);
             }
+            
+            News_Output.push_back(curNews);
         }
-
-        News_Output.push_back(curNews);
     }
-
+    
     return News_Output;
 }
 
