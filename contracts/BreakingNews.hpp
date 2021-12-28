@@ -274,8 +274,14 @@ public:
     platon::StorageType<"NewsCount"_n, platon::u128>                        mNewsCount;         //当前已发布的news、viewpoint编号，自增用于生成唯一标识
     platon::StorageType<"VPCount"_n, uint64_t>                              mVPCount;         //当前已发布的news、viewpoint编号，自增用于生成唯一标识
 
-    platon::db::Map<"BreakingNews"_n, platon::u128, News>                   mBreakingNews;                       
-    platon::db::Map<"Users"_n, std::string, UserInfo>                       mUsers;             //存放用户信息，这个后续再考虑下要不要
+    platon::db::Map<"BreakingNews"_n, platon::u128, News>                   mBreakingNews; 
+
+    platon::db::MultiIndex<
+        "Users"_n, UserInfo,
+        platon::db::IndexedBy<"UserAddress"_n, platon::db::IndexMemberFun<UserInfo, uint64_t, &UserInfo::UserAddress,
+            platon::db::IndexType::UniqueIndex>>
+    >
+                                                                           mUsers;             //存放用户信息
 
     platon::db::MultiIndex<
 		"Viewpoints"_n, Viewpoint,

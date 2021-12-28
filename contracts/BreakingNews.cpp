@@ -131,7 +131,15 @@ std::string BreakingNews::createViewPoint(platon::u128 ID,
 
 std::list<UserInfo> BreakingNews::getUsers()
 {
-    return mUsers.self();
+    // return mUsers.self();
+    std::list<UserInfo> user_info;
+
+    for (auto userItr = mUsers.cbegin(); userItr != mUsers.cend(); ++userItr)
+    {
+        user_info.push_back(*userItr);
+    }
+    
+    return user_info;
 }
 
 std::list<News> BreakingNews::getNews()
@@ -642,17 +650,29 @@ void BreakingNews::clearViewpoint(platon::u128 vpID)
 
 UserInfo* BreakingNews::_getUser(const std::string& userAddr)
 {
-    if (mUsers.contains(userAddr))
+    auto userItr = mUsers.find<"UserAddress"_n>(userAddr);
+    if (userItr != mUsers.cend())
     {
-        return &(mUsers[userAddr]);
+        return &(*userItr);
     }
     
     //没有找到，则创建一个
     UserInfo curUser;
     curUser.UserAddress = userAddr;
     curUser.UserCredibility = _mSysParams.self().User_init;
-    mUsers.insert(userAddr, curUser);
-    return &(mUsers[userAddr]);
+    
+    // insert
+    auto rst = mUsers.emplace([&](auto& userItem){
+        userItem = curUser;
+    });
+
+    if (rst.second){
+        return &(*(rst.first));
+    }
+    else{
+        return NULL;
+    }
+    
 }
 
 //BreakingNews class add interface
