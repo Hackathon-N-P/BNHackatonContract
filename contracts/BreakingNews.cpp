@@ -174,35 +174,34 @@ std::string BreakingNews::likeNews(platon::u128 newsID)
     std::string userAddrStr = platon::encode(userAddress, hrp);
 
     bool isFound = false;
-    for (auto newsItr = mBreakingNews.self().begin(); newsItr != mBreakingNews.self().end(); ++newsItr)
-    {
-        if (newsItr->NewID == newsID)
-        {
-            UserInfo* userPtr = _getUser(userAddrStr);
-            //下面这个判断主要是为了调试
-            if (NULL == userPtr)
-            {
-                PLATON_EMIT_EVENT1(BNMessage, "like news", "error: NULL when _getUser");
-                return "error: NULL when _getUser";
-            }
-            isFound = true;
-            //先消灭disLike中的记录
-            newsItr->cancleDislike(userPtr, this);
-            
-            //再插入like列表中，注意查重
-            newsItr->addLike(userPtr, this);
 
-            //判断news该变量是否累积到位
-			if ((newsItr->delta_Cn >= _mSysParams.self().News_threshold) ||
-				(newsItr->delta_Cn <= -_mSysParams.self().News_threshold))
-			{
-				newsItr->updateNews(this);
-			}
-            
-            break;
+    if (mBreakingNews.contains(newsID))
+    {
+        UserInfo* userPtr = _getUser(userAddrStr);
+        //下面这个判断主要是为了调试
+        if (NULL == userPtr)
+        {
+            PLATON_EMIT_EVENT1(BNMessage, "like news", "error: NULL when _getUser");
+            return "error: NULL when _getUser";
+        }
+        isFound = true;
+
+        auto newsItr = &(mBreakingNews[newsID]);
+
+        //先消灭disLike中的记录
+        newsItr->cancleDislike(userPtr, this);
+        
+        //再插入like列表中，注意查重
+        newsItr->addLike(userPtr, this);
+
+        //判断news该变量是否累积到位
+        if ((newsItr->delta_Cn >= _mSysParams.self().News_threshold) ||
+            (newsItr->delta_Cn <= -_mSysParams.self().News_threshold))
+        {
+            newsItr->updateNews(this);
         }
     }
-
+    
     if (!isFound)
     {
         PLATON_EMIT_EVENT1(BNMessage, "like news" , "error: news not found!");
@@ -219,29 +218,27 @@ std::string BreakingNews::cancellikeNews(platon::u128 newsID)
     std::string userAddrStr = platon::encode(userAddress, hrp);
 
     bool isFound = false;
-    for (auto newsItr = mBreakingNews.self().begin(); newsItr != mBreakingNews.self().end(); ++newsItr)
-    {
-        if (newsItr->NewID == newsID)
-        {
-            UserInfo* userPtr = _getUser(userAddrStr);
-            //下面这个判断主要是为了调试
-            if (NULL == userPtr)
-            {
-                PLATON_EMIT_EVENT1(BNMessage, "like news", "error: NULL when _getUser");
-                return "error: NULL when _getUser";
-            }
-            isFound = true;
-            //消灭Like中的记录
-            newsItr->cancleLike(userPtr, this);
 
-			//判断news该变量是否累积到位
-			if ((newsItr->delta_Cn >= _mSysParams.self().News_threshold) ||
-				(newsItr->delta_Cn <= -_mSysParams.self().News_threshold))
-			{
-				newsItr->updateNews(this);
-			}
-            
-            break;
+    if (mBreakingNews.contains(newsID))
+    {
+        UserInfo* userPtr = _getUser(userAddrStr);
+        //下面这个判断主要是为了调试
+        if (NULL == userPtr)
+        {
+            PLATON_EMIT_EVENT1(BNMessage, "like news", "error: NULL when _getUser");
+            return "error: NULL when _getUser";
+        }
+        isFound = true;
+
+        auto newsItr = &(mBreakingNews[newsID]);
+        //消灭Like中的记录
+        newsItr->cancleLike(userPtr, this);
+
+        //判断news该变量是否累积到位
+        if ((newsItr->delta_Cn >= _mSysParams.self().News_threshold) ||
+            (newsItr->delta_Cn <= -_mSysParams.self().News_threshold))
+        {
+            newsItr->updateNews(this);
         }
     }
 
@@ -261,33 +258,30 @@ std::string BreakingNews::dislikeNews(platon::u128 newsID)
     std::string userAddrStr = platon::encode(userAddress, hrp);
 
     bool isFound = false;
-    for (auto newsItr = mBreakingNews.self().begin(); newsItr != mBreakingNews.self().end(); ++newsItr)
-    {
-        if (newsItr->NewID == newsID)
+
+    if (mBreakingNews.contains(newsID)){
+        UserInfo* userPtr = _getUser(userAddrStr);
+        //下面这个判断主要是为了调试
+        if (NULL == userPtr)
         {
-            UserInfo* userPtr = _getUser(userAddrStr);
-            //下面这个判断主要是为了调试
-            if (NULL == userPtr)
-            {
-                PLATON_EMIT_EVENT1(BNMessage, "like news", "error: NULL when _getUser");
-                return "error: NULL when _getUser";
-            }
+            PLATON_EMIT_EVENT1(BNMessage, "like news", "error: NULL when _getUser");
+            return "error: NULL when _getUser";
+        }
 
-            isFound = true;
-            //先消灭Like中的记录
-            newsItr->cancleLike(userPtr, this);
-            
-            //再插入disLike列表中，注意查重
-            newsItr->addDislike(userPtr, this);
+        isFound = true;
 
-			//判断news该变量是否累积到位
-			if ((newsItr->delta_Cn >= _mSysParams.self().News_threshold) ||
-				(newsItr->delta_Cn <= -_mSysParams.self().News_threshold))
-			{
-				newsItr->updateNews(this);
-			}
-            
-            break;
+        auto newsItr = &(mBreakingNews[newsID]);
+        //先消灭Like中的记录
+        newsItr->cancleLike(userPtr, this);
+        
+        //再插入disLike列表中，注意查重
+        newsItr->addDislike(userPtr, this);
+
+        //判断news该变量是否累积到位
+        if ((newsItr->delta_Cn >= _mSysParams.self().News_threshold) ||
+            (newsItr->delta_Cn <= -_mSysParams.self().News_threshold))
+        {
+            newsItr->updateNews(this);
         }
     }
 
@@ -307,30 +301,28 @@ std::string BreakingNews::canceldislikeNews(platon::u128 newsID)
     std::string userAddrStr = platon::encode(userAddress, hrp);
 
     bool isFound = false;
-    for (auto newsItr = mBreakingNews.self().begin(); newsItr != mBreakingNews.self().end(); ++newsItr)
+
+    if (mBreakingNews.contains(newsID))
     {
-        if (newsItr->NewID == newsID)
+        UserInfo* userPtr = _getUser(userAddrStr);
+        //下面这个判断主要是为了调试
+        if (NULL == userPtr)
         {
-            UserInfo* userPtr = _getUser(userAddrStr);
-            //下面这个判断主要是为了调试
-            if (NULL == userPtr)
-            {
-                PLATON_EMIT_EVENT1(BNMessage, "like news", "error: NULL when _getUser");
-                return "error: NULL when _getUser";
-            }
+            PLATON_EMIT_EVENT1(BNMessage, "like news", "error: NULL when _getUser");
+            return "error: NULL when _getUser";
+        }
 
-            isFound = true;
-            //先消灭disLike中的记录
-            newsItr->cancleDislike(userPtr, this);
+        isFound = true;
+        
+        auto newsItr = &(mBreakingNews[newsID]);
+        //先消灭disLike中的记录
+        newsItr->cancleDislike(userPtr, this);
 
-			//判断news该变量是否累积到位
-			if ((newsItr->delta_Cn >= _mSysParams.self().News_threshold) ||
-				(newsItr->delta_Cn <= -_mSysParams.self().News_threshold))
-			{
-				newsItr->updateNews(this);
-			}
-            
-            break;
+        //判断news该变量是否累积到位
+        if ((newsItr->delta_Cn >= _mSysParams.self().News_threshold) ||
+            (newsItr->delta_Cn <= -_mSysParams.self().News_threshold))
+        {
+            newsItr->updateNews(this);
         }
     }
 
@@ -352,42 +344,39 @@ std::string BreakingNews::likeViewpoint(platon::u128 vpID)
     std::string userAddrStr = platon::encode(userAddress, hrp);
 
     bool isFound = false;
-    for (auto vpItr = mVP.self().begin(); vpItr != mVP.self().end(); ++vpItr)
+
+    auto vpItr = mVP.find<"VPID"_n>(vpID);
+    if (vpItr != mVP.cend())
     {
-        if (vpItr->ViewpointID == vpID)
+        UserInfo* userPtr = _getUser(userAddrStr);
+        //下面这个判断主要是为了调试
+        if (NULL == userPtr)
         {
-            UserInfo* userPtr = _getUser(userAddrStr);
-            //下面这个判断主要是为了调试
-            if (NULL == userPtr)
-            {
-                PLATON_EMIT_EVENT1(BNMessage, "like viewpoint", "error: NULL when _getUser");
-                return "error: NULL when _getUser";
-            }
+            PLATON_EMIT_EVENT1(BNMessage, "like viewpoint", "error: NULL when _getUser");
+            return "error: NULL when _getUser";
+        }
 
-            isFound = true;
+        isFound = true;
 
-            News* newsPtr = _getNews(vpItr->NewID);
-            //下面这个判断主要是为了调试
-            if (NULL == newsPtr)
-            {
-                PLATON_EMIT_EVENT1(BNMessage, "like viewpoint", "error: NULL when _getNews");
-                return "error: NULL when _getNews";
-            }
+        News* newsPtr = _getNews(vpItr->NewID);
+        //下面这个判断主要是为了调试
+        if (NULL == newsPtr)
+        {
+            PLATON_EMIT_EVENT1(BNMessage, "like viewpoint", "error: NULL when _getNews");
+            return "error: NULL when _getNews";
+        }
 
-            //先消灭dislike中的记录
-            vpItr->cancleDislike(userPtr, newsPtr, this);
+        //先消灭dislike中的记录
+        vpItr->cancleDislike(userPtr, newsPtr, this);
 
-            //再加入like中的记录
-            vpItr->addLike(userPtr, newsPtr, this);
+        //再加入like中的记录
+        vpItr->addLike(userPtr, newsPtr, this);
 
-            //根据ΔCv累积量，判断是否更新相关user
-            if ((vpItr->delta_Cv >= _mSysParams.self().View_threshold) || 
-                (vpItr->delta_Cv <= -_mSysParams.self().View_threshold))
-            {
-                vpItr->updateView(this);
-            }
-
-            break;
+        //根据ΔCv累积量，判断是否更新相关user
+        if ((vpItr->delta_Cv >= _mSysParams.self().View_threshold) || 
+            (vpItr->delta_Cv <= -_mSysParams.self().View_threshold))
+        {
+            vpItr->updateView(this);
         }
     }
 
@@ -407,39 +396,36 @@ std::string BreakingNews::cancellikeViewpoint(platon::u128 vpID)
     std::string userAddrStr = platon::encode(userAddress, hrp);
 
     bool isFound = false;
-    for (auto vpItr = mVP.self().begin(); vpItr != mVP.self().end(); ++vpItr)
+
+    auto vpItr = mVP.find<"VPID"_n>(vpID);
+    if (vpItr != mVP.cend())
     {
-        if (vpItr->ViewpointID == vpID)
+        UserInfo* userPtr = _getUser(userAddrStr);
+        //下面这个判断主要是为了调试
+        if (NULL == userPtr)
         {
-            UserInfo* userPtr = _getUser(userAddrStr);
-            //下面这个判断主要是为了调试
-            if (NULL == userPtr)
-            {
-                PLATON_EMIT_EVENT1(BNMessage, "like news", "error: NULL when _getUser");
-                return "error: NULL when _getUser";
-            }
+            PLATON_EMIT_EVENT1(BNMessage, "like news", "error: NULL when _getUser");
+            return "error: NULL when _getUser";
+        }
 
-            isFound = true;
+        isFound = true;
 
-            News* newsPtr = _getNews(vpItr->NewID);
-            //下面这个判断主要是为了调试
-            if (NULL == newsPtr)
-            {
-                PLATON_EMIT_EVENT1(BNMessage, "cancel like viewpoint", "error: NULL when _getNews");
-                return "error: NULL when _getNews";
-            }
+        News* newsPtr = _getNews(vpItr->NewID);
+        //下面这个判断主要是为了调试
+        if (NULL == newsPtr)
+        {
+            PLATON_EMIT_EVENT1(BNMessage, "cancel like viewpoint", "error: NULL when _getNews");
+            return "error: NULL when _getNews";
+        }
 
-            //先消灭like中的记录
-            vpItr->cancleLike(userPtr, newsPtr, this);
+        //先消灭like中的记录
+        vpItr->cancleLike(userPtr, newsPtr, this);
 
-            //根据ΔCv累积量，判断是否更新相关user
-            if ((vpItr->delta_Cv >= _mSysParams.self().View_threshold) ||
-                (vpItr->delta_Cv <= -_mSysParams.self().View_threshold))
-            {
-                vpItr->updateView(this);
-            }
-
-            break;
+        //根据ΔCv累积量，判断是否更新相关user
+        if ((vpItr->delta_Cv >= _mSysParams.self().View_threshold) ||
+            (vpItr->delta_Cv <= -_mSysParams.self().View_threshold))
+        {
+            vpItr->updateView(this);
         }
     }
 
@@ -459,42 +445,39 @@ std::string BreakingNews::dislikeViewpoint(platon::u128 vpID)
     std::string userAddrStr = platon::encode(userAddress, hrp);
 
     bool isFound = false;
-    for (auto vpItr = mVP.self().begin(); vpItr != mVP.self().end(); ++vpItr)
+
+    auto vpItr = mVP.find<"VPID"_n>(vpID);
+    if (vpItr != mVP.cend())
     {
-        if (vpItr->ViewpointID == vpID)
+        UserInfo* userPtr = _getUser(userAddrStr);
+        //下面这个判断主要是为了调试
+        if (NULL == userPtr)
         {
-            UserInfo* userPtr = _getUser(userAddrStr);
-            //下面这个判断主要是为了调试
-            if (NULL == userPtr)
-            {
-                PLATON_EMIT_EVENT1(BNMessage, "like news", "error: NULL when _getUser");
-                return "error: NULL when _getUser";
-            }
+            PLATON_EMIT_EVENT1(BNMessage, "like news", "error: NULL when _getUser");
+            return "error: NULL when _getUser";
+        }
 
-            isFound = true;
+        isFound = true;
 
-            News* newsPtr = _getNews(vpItr->NewID);
-            //下面这个判断主要是为了调试
-            if (NULL == newsPtr)
-            {
-                PLATON_EMIT_EVENT1(BNMessage, "dislike viewpoint", "error: NULL when _getNews");
-                return "error: NULL when _getNews";
-            }
+        News* newsPtr = _getNews(vpItr->NewID);
+        //下面这个判断主要是为了调试
+        if (NULL == newsPtr)
+        {
+            PLATON_EMIT_EVENT1(BNMessage, "dislike viewpoint", "error: NULL when _getNews");
+            return "error: NULL when _getNews";
+        }
 
-            //先消灭Like中的记录
-            vpItr->cancleLike(userPtr, newsPtr, this);
+        //先消灭Like中的记录
+        vpItr->cancleLike(userPtr, newsPtr, this);
 
-            //再加入Dislike中
-            vpItr->addDislike(userPtr, newsPtr, this);
+        //再加入Dislike中
+        vpItr->addDislike(userPtr, newsPtr, this);
 
-            //根据ΔCv累积量，判断是否更新相关user
-            if ((vpItr->delta_Cv >= _mSysParams.self().View_threshold) ||
-                (vpItr->delta_Cv <= -_mSysParams.self().View_threshold))
-            {
-                vpItr->updateView(this);
-            }
-
-            break;
+        //根据ΔCv累积量，判断是否更新相关user
+        if ((vpItr->delta_Cv >= _mSysParams.self().View_threshold) ||
+            (vpItr->delta_Cv <= -_mSysParams.self().View_threshold))
+        {
+            vpItr->updateView(this);
         }
     }
 
@@ -514,39 +497,36 @@ std::string BreakingNews::canceldislikeViewpoint(platon::u128 vpID)
     std::string userAddrStr = platon::encode(userAddress, hrp);
 
     bool isFound = false;
-    for (auto vpItr = mVP.self().begin(); vpItr != mVP.self().end(); ++vpItr)
+
+    auto vpItr = mVP.find<"VPID"_n>(vpID);
+    if (vpItr != mVP.cend())
     {
-        if (vpItr->ViewpointID == vpID)
+        UserInfo* userPtr = _getUser(userAddrStr);
+        //下面这个判断主要是为了调试
+        if (NULL == userPtr)
         {
-            UserInfo* userPtr = _getUser(userAddrStr);
-            //下面这个判断主要是为了调试
-            if (NULL == userPtr)
-            {
-                PLATON_EMIT_EVENT1(BNMessage, "like news", "error: NULL when _getUser");
-                return "error: NULL when _getUser";
-            }
+            PLATON_EMIT_EVENT1(BNMessage, "like news", "error: NULL when _getUser");
+            return "error: NULL when _getUser";
+        }
 
-            isFound = true;
+        isFound = true;
 
-            News* newsPtr = _getNews(vpItr->NewID);
-            //下面这个判断主要是为了调试
-            if (NULL == newsPtr)
-            {
-                PLATON_EMIT_EVENT1(BNMessage, "cancel dislike viewpoint", "error: NULL when _getNews");
-                return "error: NULL when _getNews";
-            }
+        News* newsPtr = _getNews(vpItr->NewID);
+        //下面这个判断主要是为了调试
+        if (NULL == newsPtr)
+        {
+            PLATON_EMIT_EVENT1(BNMessage, "cancel dislike viewpoint", "error: NULL when _getNews");
+            return "error: NULL when _getNews";
+        }
 
-            //先消灭dislike中的记录
-            vpItr->cancleDislike(userPtr, newsPtr, this);
+        //先消灭dislike中的记录
+        vpItr->cancleDislike(userPtr, newsPtr, this);
 
-            //根据ΔCv累积量，判断是否更新相关user
-            if ((vpItr->delta_Cv >= _mSysParams.self().View_threshold) ||
-                (vpItr->delta_Cv <= -_mSysParams.self().View_threshold))
-            {
-                vpItr->updateView(this);
-            }
-
-            break;
+        //根据ΔCv累积量，判断是否更新相关user
+        if ((vpItr->delta_Cv >= _mSysParams.self().View_threshold) ||
+            (vpItr->delta_Cv <= -_mSysParams.self().View_threshold))
+        {
+            vpItr->updateView(this);
         }
     }
 
@@ -563,21 +543,7 @@ std::string BreakingNews::canceldislikeViewpoint(platon::u128 vpID)
 //测试事件
 bool BreakingNews::checkNews()
 {
-    std::list<News> News_Output;
-    for (auto newsItr = mBreakingNews.self().begin(); newsItr != mBreakingNews.self().end(); ++newsItr)
-    {
-        News curNews = *newsItr;
-
-        for (auto vpItr = mVP.self().begin(); vpItr != mVP.self().end(); ++vpItr)
-        {
-            if (curNews.NewID == vpItr->NewID)
-            {
-                curNews.Viewpoints.push_back(*vpItr);
-            }
-        }
-
-        News_Output.push_back(curNews);
-    }
+    std::list<News> News_Output = getNews();
 
     auto outPutNewsItr = News_Output.begin();
     if (News_Output.end() != outPutNewsItr)
