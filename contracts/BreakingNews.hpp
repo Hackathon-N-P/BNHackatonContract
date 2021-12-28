@@ -24,6 +24,8 @@ struct UserInfo {
     PLATON_SERIALIZE(UserInfo, (UserAddress)(UserCredibility)
     (Cu_N_author)(Cu_V_author)(Cu_N_up_down)(Cu_V_up_down))
 
+    std::string UserAddr() const {return UserAddress;}
+
     //UserCredibility校正，其取值范围是(0,+∞)
     void CredibilityAdjust(BreakingNews* bnPtr);
 
@@ -51,7 +53,7 @@ struct Viewpoint
 {
     //观点消息头
     bool            point;          //支持true，反对false
-    uint64_t        ViewpointID;    //观点唯一标识
+    uint64_t       ViewpointID;    //观点唯一标识
     platon::u128    NewID;          //该观点对应的爆料标识
 
     //观点消息体
@@ -78,6 +80,9 @@ struct Viewpoint
         (point)(ViewpointID)(NewID)
     (msgauthorAddress)(msgContent)(msgImages)(msgUp)(msgDown)(BlockNumber)(createTime)(Credibility)
     (Cv_N)(Cv_up_down)(Cv_author)(delta_Cv))
+
+    uint64_t getVPID() const {return ViewpointID;}
+    platon::u128 getNewID() const {return NewID;}
 
 	//在以下接口中，会计算可信度
 	void addLike(UserInfo* userPtr, News* newsPtr, BreakingNews* bnPtr);
@@ -249,8 +254,14 @@ public:
     ACTION void clearViewpoint(platon::u128 vpID);
 
 private:
+
+    typedef platon::db::MultiIndex<
+        "Users"_n, UserInfo,
+        platon::db::IndexedBy<"UserAddress"_n, platon::db::IndexMemberFun<UserInfo, std::string, &UserInfo::UserAddr,
+            platon::db::IndexType::UniqueIndex>>> usermi;
+
     //有则返回，无则先创建，此接口返回一定不会为NULL
-    UserInfo* _getUser(const std::string& userAddr);
+    usermi::const_iterator _getUser(const std::string& userAddr);
 
     //获取news，可能返回NULL
     News* _getNews(const platon::u128& newsID);
@@ -278,19 +289,15 @@ public:
 
     platon::db::MultiIndex<
         "Users"_n, UserInfo,
-        platon::db::IndexedBy<"UserAddress"_n, platon::db::IndexMemberFun<UserInfo, uint64_t, &UserInfo::UserAddress,
-            platon::db::IndexType::UniqueIndex>>
-    >
-                                                                           mUsers;             //存放用户信息
+        platon::db::IndexedBy<"UserAddress"_n, platon::db::IndexMemberFun<UserInfo, std::string, &UserInfo::UserAddr,
+            platon::db::IndexType::UniqueIndex>>>                           mUsers;             //存放用户信息
 
     platon::db::MultiIndex<
 		"Viewpoints"_n, Viewpoint,
-		platon::db::IndexedBy<"VPID"_n, platon::db::IndexMemberFun<Viewpoint, uint64_t, &Viewpoint::ViewpointID,
+		platon::db::IndexedBy<"VPID"_n, platon::db::IndexMemberFun<Viewpoint, uint64_t, &Viewpoint::getVPID,
 		platon::db::IndexType::UniqueIndex>>,
-		platon::db::IndexedBy<"NewsID"_n, platon::db::IndexMemberFun<Viewpoint, platon::u128, &Viewpoint::NewID,
-		platon::db::IndexType::NormalIndex>>>                   
-        
-                                                                            mVP;                //用于存放观点，观点单独存，便于查找
+		platon::db::IndexedBy<"NewsID"_n, platon::db::IndexMemberFun<Viewpoint, platon::u128, &Viewpoint::getNewID,
+		platon::db::IndexType::NormalIndex>>>                               mVP;                //用于存放观点，观点单独存，便于查找
 
 private:
     platon::StorageType<"Owner"_n, std::pair<platon::Address, bool>>       _mOwner;            //合约所有者地址，即部署者，黑客松中留个特殊权限

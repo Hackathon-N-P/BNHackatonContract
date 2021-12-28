@@ -34,9 +34,9 @@ std::string BreakingNews::createNews(const std::string& title,
     curNews.Credibility = 0;
 
     //get user
-    UserInfo* userPtr = _getUser(curNews.msgauthorAddress);
+    auto userPtr = _getUser(curNews.msgauthorAddress);
     //下面这个判断主要是为了调试
-    if (NULL == userPtr)
+    if (mUsers.cend() == userPtr)
     {
         PLATON_EMIT_EVENT1(AddNews, "Error: NULL when _getUser", curNews);
         return "error";
@@ -46,7 +46,10 @@ std::string BreakingNews::createNews(const std::string& title,
     curNews.Cn_author = _mSysParams.self().News_gama * userPtr->UserCredibility / _mSysParams.self().Coefficient;
     curNews.Credibility = curNews.Cn_author;
 
-    userPtr->createNews_update(curNews.Credibility, this);
+    // userPtr->createNews_update(curNews.Credibility, this);
+    mUsers.modify(userPtr, [&](auto& userItem){
+        userItem.createNews_update(curNews.Credibility, this);
+    });
 
     mBreakingNews[curNews.NewID] = curNews;
     PLATON_EMIT_EVENT1(AddNews, "Create News" , curNews);
@@ -367,16 +370,27 @@ std::string BreakingNews::likeViewpoint(platon::u128 vpID)
         }
 
         //先消灭dislike中的记录
-        vpItr->cancleDislike(userPtr, newsPtr, this);
+        // vpItr->cancleDislike(userPtr, newsPtr, this);
 
         //再加入like中的记录
-        vpItr->addLike(userPtr, newsPtr, this);
+        // vpItr->addLike(userPtr, newsPtr, this);
+
+        mVP.modify(vpItr, [&](auto& vpItem){
+            //先消灭dislike中的记录
+            vpItem.cancleDislike(userPtr, newsPtr, this);
+
+            //再加入like中的记录
+            vpItem.addLike(userPtr, newsPtr, this);
+        });
 
         //根据ΔCv累积量，判断是否更新相关user
         if ((vpItr->delta_Cv >= _mSysParams.self().View_threshold) || 
             (vpItr->delta_Cv <= -_mSysParams.self().View_threshold))
         {
-            vpItr->updateView(this);
+            // vpItr->updateView(this);
+            mVP.modify(vpItr, [&](auto& vpItem){
+                vpItem.updateView(this);
+            });
         }
     }
 
@@ -419,13 +433,20 @@ std::string BreakingNews::cancellikeViewpoint(platon::u128 vpID)
         }
 
         //先消灭like中的记录
-        vpItr->cancleLike(userPtr, newsPtr, this);
+        // vpItr->cancleLike(userPtr, newsPtr, this);
+        mVP.modify(vpItr, [&](auto& vpItem){
+            //先消灭like中的记录
+            vpItem.cancleLike(userPtr, newsPtr, this);
+        });
 
         //根据ΔCv累积量，判断是否更新相关user
         if ((vpItr->delta_Cv >= _mSysParams.self().View_threshold) ||
             (vpItr->delta_Cv <= -_mSysParams.self().View_threshold))
         {
-            vpItr->updateView(this);
+            // vpItr->updateView(this);
+            mVP.modify(vpItr, [&](auto& vpItem){
+                vpItem.updateView(this);
+            });
         }
     }
 
@@ -468,16 +489,27 @@ std::string BreakingNews::dislikeViewpoint(platon::u128 vpID)
         }
 
         //先消灭Like中的记录
-        vpItr->cancleLike(userPtr, newsPtr, this);
+        // vpItr->cancleLike(userPtr, newsPtr, this);
 
         //再加入Dislike中
-        vpItr->addDislike(userPtr, newsPtr, this);
+        // vpItr->addDislike(userPtr, newsPtr, this);
+
+        mVP.modify(vpItr, [&](auto& vpItem){
+            //先消灭Like中的记录
+            vpItem.cancleLike(userPtr, newsPtr, this);
+
+            //再加入Dislike中
+            vpItem.addDislike(userPtr, newsPtr, this);
+        });
 
         //根据ΔCv累积量，判断是否更新相关user
         if ((vpItr->delta_Cv >= _mSysParams.self().View_threshold) ||
             (vpItr->delta_Cv <= -_mSysParams.self().View_threshold))
         {
-            vpItr->updateView(this);
+            // vpItr->updateView(this);
+            mVP.modify(vpItr, [&](auto& vpItem){
+                vpItem.updateView(this);
+            });
         }
     }
 
@@ -520,13 +552,20 @@ std::string BreakingNews::canceldislikeViewpoint(platon::u128 vpID)
         }
 
         //先消灭dislike中的记录
-        vpItr->cancleDislike(userPtr, newsPtr, this);
+        // vpItr->cancleDislike(userPtr, newsPtr, this);
+        mVP.modify(vpItr, [&](auto& vpItem){
+            //先消灭like中的记录
+            vpItem.cancleDislike(userPtr, newsPtr, this);
+        });
 
         //根据ΔCv累积量，判断是否更新相关user
         if ((vpItr->delta_Cv >= _mSysParams.self().View_threshold) ||
             (vpItr->delta_Cv <= -_mSysParams.self().View_threshold))
         {
-            vpItr->updateView(this);
+            // vpItr->updateView(this);
+            mVP.modify(vpItr, [&](auto& vpItem){
+                vpItem.updateView(this);
+            });
         }
     }
 
@@ -568,11 +607,35 @@ void BreakingNews::clear()
         return;
     }
 
-    mBreakingNews.self().clear();
-    mUsers.self().clear();
+    // clear news
+    auto news_count = mNewsCount.self();
+    for (auto i = 0; i < news_count; i++)
+    {
+        if (mBreakingNews.contains(i))
+        {
+            mBreakingNews.erase(i);
+        }
+    }
     mNewsCount.self() = 0;
-    mNewsHashChain.self().clear();
-    mVP.self().clear();
+    
+    // clear users
+    auto userItr = mUsers.cbegin();
+    while (userItr != mUsers.cend())
+    {
+        auto tempItr = userItr;
+        ++userItr;
+        mUsers.erase(tempItr);
+    }
+    
+    // clear viewpoints
+    auto vpItr = mVP.cbegin();
+    while (vpItr != mVP.cend())
+    {
+        auto tempItr = vpItr;
+        ++vpItr;
+        mVP.erase(tempItr);
+    }
+    mVPCount.self() = 0;
 }
 
 void BreakingNews::clearNews(platon::u128 newsID)
@@ -583,16 +646,9 @@ void BreakingNews::clearNews(platon::u128 newsID)
         return;
     }
 
-    auto newsItr = mBreakingNews.self().begin();
-    while (newsItr != mBreakingNews.self().end())
+    if (mBreakingNews.contains(newsID))
     {
-        if (newsItr->NewID == newsID)
-        {
-            mBreakingNews.self().erase(newsItr);
-            break;
-        }
-
-        ++newsItr;
+        mBreakingNews.erase(newsID);
     }
 }
 
@@ -604,20 +660,14 @@ void BreakingNews::clearViewpoint(platon::u128 vpID)
         return;
     }
 
-    auto vpItr = mVP.self().begin();
-    while (vpItr != mVP.self().end())
+    auto vpItr = mVP.find<"VPID"_n>(vpID);
+    if (vpItr != mVP.cend())
     {
-        if (vpItr->ViewpointID == vpID)
-        {
-            mVP.self().erase(vpItr);
-            break;
-        }
-
-        ++vpItr;
+        mVP.erase(vpItr);
     }
 }
 
-UserInfo* BreakingNews::_getUser(const std::string& userAddr)
+BreakingNews::usermi::const_iterator BreakingNews::_getUser(const std::string& userAddr)
 {
     auto userItr = mUsers.find<"UserAddress"_n>(userAddr);
     if (userItr != mUsers.cend())
@@ -641,7 +691,6 @@ UserInfo* BreakingNews::_getUser(const std::string& userAddr)
     else{
         return NULL;
     }
-    
 }
 
 //BreakingNews class add interface
@@ -657,12 +706,10 @@ News* BreakingNews::_getNews(const platon::u128& newsID)
 
 Viewpoint* BreakingNews::_getViewpoint(const platon::u128& vpID)
 {
-    for (auto vpItr = mVP.self().begin(); vpItr != mVP.self().end(); ++vpItr)
+    auto vpItr = mVP.find<"VPID"_n>(vpID);
+    if (vpItr != mVP.cend())
     {
-        if (vpItr->ViewpointID == vpID)
-        {
-            return &(*vpItr);
-        }
+        return &(*vpItr);
     }
 
     return NULL;    //后续有空都改成nullptr
@@ -787,14 +834,15 @@ void News::updataWithCv(int32_t delta_Cv, int32_t isSupport, BreakingNews* bnPtr
 void News::updateNews(BreakingNews* bnPtr)
 {
     //更新view
-    for (auto vpItr = bnPtr->mVP.self().begin(); vpItr != bnPtr->mVP.self().end(); ++vpItr)
+    auto normal_indexs = bnPtr->mVP.get_index<"NewsID"_n>();
+    for (auto vpItr = normal_indexs.cbegin(NewID); vpItr != normal_indexs.cend(NewID); ++vpItr)
     {
-        if (vpItr->NewID == NewID)
-        {
-            vpItr->delta_Cn_updata(delta_Cn, bnPtr);
-        }
+        // vpItr->delta_Cn_updata(delta_Cn, bnPtr);
+        normal_indexs.modify(vpItr, [&](auto& vpItem){
+            vpItem.delta_Cn_updata(delta_Cn, bnPtr);
+        });
     }
-
+    
     //更新user，只更新跟news直接相关的user
     //author
     UserInfo* authorPtr = bnPtr->_getUser(msgauthorAddress);
