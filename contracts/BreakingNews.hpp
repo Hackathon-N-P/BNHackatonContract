@@ -272,7 +272,7 @@ public:
     // platon::StorageType<"Viewpoints"_n, std::vector<Viewpoint>>            mVP;                //用于存放观点，观点单独存，便于查找
 
     platon::StorageType<"NewsCount"_n, platon::u128>                        mNewsCount;         //当前已发布的news、viewpoint编号，自增用于生成唯一标识
-    platon::StorageType<"VPCount"_n, uint64_t>                          mVPCount;         //当前已发布的news、viewpoint编号，自增用于生成唯一标识
+    platon::StorageType<"VPCount"_n, uint64_t>                              mVPCount;         //当前已发布的news、viewpoint编号，自增用于生成唯一标识
 
     platon::db::Map<"BreakingNews"_n, platon::u128, News>                   mBreakingNews;                       
     platon::db::Map<"Users"_n, std::string, UserInfo>                       mUsers;             //存放用户信息，这个后续再考虑下要不要
@@ -281,7 +281,7 @@ public:
 		"Viewpoints"_n, Viewpoint,
 		platon::db::IndexedBy<"VPID"_n, platon::db::IndexMemberFun<Viewpoint, uint64_t, &Viewpoint::ViewpointID,
 		platon::db::IndexType::UniqueIndex>>,
-		platon::db::IndexedBy<"NewsID"_n, platon::db::IndexMemberFun<Viewpoint, std::u128, &Viewpoint::NewID,
+		platon::db::IndexedBy<"NewsID"_n, platon::db::IndexMemberFun<Viewpoint, platon::u128, &Viewpoint::NewID,
 		platon::db::IndexType::NormalIndex>>>                   
         
                                                                             mVP;                //用于存放观点，观点单独存，便于查找

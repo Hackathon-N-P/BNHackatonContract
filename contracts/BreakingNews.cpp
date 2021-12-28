@@ -62,65 +62,63 @@ std::string BreakingNews::createViewPoint(platon::u128 ID,
 {
     //先判断news是否存在
     bool isFound = false;
-    
 
-
-    for (auto newsItr = mBreakingNews.self().begin(); newsItr != mBreakingNews.self().end(); ++newsItr)
+    if (mBreakingNews.contains(ID))
     {
-        if (newsItr->NewID == ID)
+        isFound = true;
+
+        ++mVPCount.self();
+
+        //insert viewpoint
+        Viewpoint curVP;
+        curVP.point = isSupported;
+        curVP.ViewpointID = mVPCount.self();
+        curVP.NewID = ID;
+        auto authorAddress = platon::platon_origin();
+        curVP.msgauthorAddress = platon::encode(authorAddress, hrp);
+        curVP.msgContent = content;
+        curVP.msgImages = image;
+        curVP.BlockNumber = platon_block_number();
+        curVP.createTime = createTime;
+        curVP.Credibility = 0;
+
+        //get user
+        UserInfo* userPtr = _getUser(curVP.msgauthorAddress);
+        //下面这个判断主要是为了调试
+        if (NULL == userPtr)
         {
-            isFound = true;
-
-            ++mNewsCount.self();
-
-            //insert viewpoint
-            Viewpoint curVP;
-            curVP.point = isSupported;
-            curVP.ViewpointID = mNewsCount.self();
-            curVP.NewID = ID;
-            auto authorAddress = platon::platon_origin();
-            curVP.msgauthorAddress = platon::encode(authorAddress, hrp);
-            curVP.msgContent = content;
-            curVP.msgImages = image;
-            curVP.BlockNumber = platon_block_number();
-            curVP.createTime = createTime;
-            curVP.Credibility = 0;
-
-            //get user
-            UserInfo* userPtr = _getUser(curVP.msgauthorAddress);
-            //下面这个判断主要是为了调试
-            if (NULL == userPtr)
-            {
-                PLATON_EMIT_EVENT1(BNMessage, "Create Viewpoint", "error: NULL when _getUser");
-                return "error: NULL when _getUser!";
-            }
-            //后续加入计算vp可信度、Viewpoint影响News可信度的代码
-            /***********************************/
-            int32_t isSupport = curVP.point ? 1 : -1;
-            curVP.Cv_author = isSupport * _mSysParams.self().View_alpha * newsItr->Credibility / _mSysParams.self().Coefficient;
-            curVP.Cv_N = _mSysParams.self().View_gama * userPtr->UserCredibility / _mSysParams.self().Coefficient;
-            curVP.Credibility = curVP.Cv_author + curVP.Cv_N;
-
-            userPtr->createView_update(curVP.Credibility, this);
-
-            int32_t beforeCreNews_V = newsItr->Cn_V;
-            newsItr->Cn_V = _mSysParams.self().rho * newsItr->Cn_V / _mSysParams.self().Coefficient +
-                _mSysParams.self().News_alpha * curVP.Credibility * isSupport * (1 * _mSysParams.self().Coefficient - _mSysParams.self().rho) / _mSysParams.self().Coefficient;
-            int32_t delta_Cn_V = newsItr->Cn_V - beforeCreNews_V;
-            newsItr->Credibility += delta_Cn_V;
-            newsItr->delta_Cn += delta_Cn_V;
-
-            if ((newsItr->delta_Cn >= _mSysParams.self().News_threshold) ||
-                (newsItr->delta_Cn <= -_mSysParams.self().News_threshold))
-            {
-                newsItr->updateNews(this);
-            }
-
-            mVP.self().push_back(curVP);
-            break;
+            PLATON_EMIT_EVENT1(BNMessage, "Create Viewpoint", "error: NULL when _getUser");
+            return "error: NULL when _getUser!";
         }
-    }
+        //后续加入计算vp可信度、Viewpoint影响News可信度的代码
+        /***********************************/
+        auto newsItr = &(mBreakingNews[ID]);
 
+        int32_t isSupport = curVP.point ? 1 : -1;
+        curVP.Cv_author = isSupport * _mSysParams.self().View_alpha * newsItr->Credibility / _mSysParams.self().Coefficient;
+        curVP.Cv_N = _mSysParams.self().View_gama * userPtr->UserCredibility / _mSysParams.self().Coefficient;
+        curVP.Credibility = curVP.Cv_author + curVP.Cv_N;
+
+        userPtr->createView_update(curVP.Credibility, this);
+
+        int32_t beforeCreNews_V = mBreakingNews[ID].Cn_V;
+        newsItr->Cn_V = _mSysParams.self().rho * newsItr->Cn_V / _mSysParams.self().Coefficient +
+            _mSysParams.self().News_alpha * curVP.Credibility * isSupport * (1 * _mSysParams.self().Coefficient - _mSysParams.self().rho) / _mSysParams.self().Coefficient;
+        int32_t delta_Cn_V = newsItr->Cn_V - beforeCreNews_V;
+        newsItr->Credibility += delta_Cn_V;
+        newsItr->delta_Cn += delta_Cn_V;
+
+        if ((newsItr->delta_Cn >= _mSysParams.self().News_threshold) ||
+            (newsItr->delta_Cn <= -_mSysParams.self().News_threshold))
+        {
+            newsItr->updateNews(this);
+        }
+
+        mVP.emplace([&](auto& vpItem) {
+		    vpItem = curVP;
+		});
+    }
+    
     if (!isFound)
     {
         PLATON_EMIT_EVENT1(BNMessage, "Create Viewpoint" , "error: news not found!");
