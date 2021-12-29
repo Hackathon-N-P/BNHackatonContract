@@ -53,7 +53,7 @@ struct Viewpoint
 {
     //观点消息头
     bool            point;          //支持true，反对false
-    uint64_t       ViewpointID;    //观点唯一标识
+    platon::u128    ViewpointID;    //观点唯一标识
     platon::u128    NewID;          //该观点对应的爆料标识
 
     //观点消息体
@@ -81,17 +81,17 @@ struct Viewpoint
     (msgauthorAddress)(msgContent)(msgImages)(msgUp)(msgDown)(BlockNumber)(createTime)(Credibility)
     (Cv_N)(Cv_up_down)(Cv_author)(delta_Cv))
 
-    uint64_t getVPID() const {return ViewpointID;}
+    platon::u128 getVPID() const {return ViewpointID;}
     platon::u128 getNewID() const {return NewID;}
 
 	//在以下接口中，会计算可信度
-	void addLike(UserInfo* userPtr, News* newsPtr, BreakingNews* bnPtr);
-	void cancleLike(UserInfo* userPtr, News* newsPtr, BreakingNews* bnPtr);
-	void addDislike(UserInfo* userPtr, News* newsPtr, BreakingNews* bnPtr);
-	void cancleDislike(UserInfo* userPtr, News* newsPtr, BreakingNews* bnPtr);
+	void addLike(const UserInfo* userPtr, News* newsPtr, BreakingNews* bnPtr);
+	void cancleLike(const UserInfo* userPtr, News* newsPtr, BreakingNews* bnPtr);
+	void addDislike(const UserInfo* userPtr, News* newsPtr, BreakingNews* bnPtr);
+	void cancleDislike(const UserInfo* userPtr, News* newsPtr, BreakingNews* bnPtr);
 
     //由点赞、踩带来的可信度改变
-    void up_down_CreUpdate(UserInfo* userPtr, News* newsPtr, int32_t coe, BreakingNews* bnPtr);
+    void up_down_CreUpdate(const UserInfo* userPtr, News* newsPtr, int32_t coe, BreakingNews* bnPtr);
 
     //根据ΔCv，更新相关user
     void updateView(BreakingNews* bnPtr);
@@ -137,10 +137,10 @@ struct News
         (Cn_V)(Cn_up_down)(Cn_author)(delta_Cn))
 
     //在以下接口中，会计算可信度
-    void addLike(UserInfo* userPtr, BreakingNews* bnPtr);
-    void cancleLike(UserInfo* userPtr, BreakingNews* bnPtr);
-    void addDislike(UserInfo* userPtr, BreakingNews* bnPtr);
-    void cancleDislike(UserInfo* userPtr, BreakingNews* bnPtr);
+    void addLike(const UserInfo* userPtr, BreakingNews* bnPtr);
+    void cancleLike(const UserInfo* userPtr, BreakingNews* bnPtr);
+    void addDislike(const UserInfo* userPtr, BreakingNews* bnPtr);
+    void cancleDislike(const UserInfo* userPtr, BreakingNews* bnPtr);
 
     //由于相关viewpoint的改变，带来的news credibility更新
     void updataWithCv(int32_t delta_Cv, int32_t isSupport, BreakingNews* bnPtr);
@@ -149,7 +149,7 @@ struct News
     void updateNews(BreakingNews* bnPtr);
 
     //由点赞、踩带来的可信度改变
-    void up_down_CreUpdate(UserInfo* userPtr, int32_t coe, BreakingNews* bnPtr);
+    void up_down_CreUpdate(const UserInfo* userPtr, int32_t coe, BreakingNews* bnPtr);
 };
 
 //历史爆料哈希块
@@ -267,7 +267,7 @@ private:
     News* _getNews(const platon::u128& newsID);
 
     //获取viewpoint，可能返回NULL
-    Viewpoint* _getViewpoint(const platon::u128& vpID);
+    auto _getViewpoint(const platon::u128& vpID);
 
     //获取系统参数
     sysParams* _getSysParams();
@@ -283,7 +283,7 @@ public:
     // platon::StorageType<"Viewpoints"_n, std::vector<Viewpoint>>            mVP;                //用于存放观点，观点单独存，便于查找
 
     platon::StorageType<"NewsCount"_n, platon::u128>                        mNewsCount;         //当前已发布的news、viewpoint编号，自增用于生成唯一标识
-    platon::StorageType<"VPCount"_n, uint64_t>                              mVPCount;         //当前已发布的news、viewpoint编号，自增用于生成唯一标识
+    platon::StorageType<"VPCount"_n, platon::u128>                          mVPCount;         //当前已发布的news、viewpoint编号，自增用于生成唯一标识
 
     platon::db::Map<"BreakingNews"_n, platon::u128, News>                   mBreakingNews; 
 
@@ -294,7 +294,7 @@ public:
 
     platon::db::MultiIndex<
 		"Viewpoints"_n, Viewpoint,
-		platon::db::IndexedBy<"VPID"_n, platon::db::IndexMemberFun<Viewpoint, uint64_t, &Viewpoint::getVPID,
+		platon::db::IndexedBy<"VPID"_n, platon::db::IndexMemberFun<Viewpoint, platon::u128, &Viewpoint::getVPID,
 		platon::db::IndexType::UniqueIndex>>,
 		platon::db::IndexedBy<"NewsID"_n, platon::db::IndexMemberFun<Viewpoint, platon::u128, &Viewpoint::getNewID,
 		platon::db::IndexType::NormalIndex>>>                               mVP;                //用于存放观点，观点单独存，便于查找

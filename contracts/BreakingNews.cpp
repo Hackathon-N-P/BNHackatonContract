@@ -19,8 +19,6 @@ std::string BreakingNews::createNews(const std::string& title,
                                   std::vector<std::string>& image, 
                                   const std::string& createTime)
 {
-    ++mNewsCount.self();
-
     //insert news
     News curNews;
     curNews.NewTitle = title;
@@ -54,6 +52,8 @@ std::string BreakingNews::createNews(const std::string& title,
     mBreakingNews[curNews.NewID] = curNews;
     PLATON_EMIT_EVENT1(AddNews, "Create News" , curNews);
 
+    ++mNewsCount.self();
+
     return "success";
 }
 
@@ -70,8 +70,6 @@ std::string BreakingNews::createViewPoint(platon::u128 ID,
     {
         isFound = true;
 
-        ++mVPCount.self();
-
         //insert viewpoint
         Viewpoint curVP;
         curVP.point = isSupported;
@@ -86,9 +84,9 @@ std::string BreakingNews::createViewPoint(platon::u128 ID,
         curVP.Credibility = 0;
 
         //get user
-        UserInfo* userPtr = _getUser(curVP.msgauthorAddress);
+        auto userPtr = _getUser(curVP.msgauthorAddress);
         //下面这个判断主要是为了调试
-        if (NULL == userPtr)
+        if (mUsers.cend() == userPtr)
         {
             PLATON_EMIT_EVENT1(BNMessage, "Create Viewpoint", "error: NULL when _getUser");
             return "error: NULL when _getUser!";
@@ -102,7 +100,10 @@ std::string BreakingNews::createViewPoint(platon::u128 ID,
         curVP.Cv_N = _mSysParams.self().View_gama * userPtr->UserCredibility / _mSysParams.self().Coefficient;
         curVP.Credibility = curVP.Cv_author + curVP.Cv_N;
 
-        userPtr->createView_update(curVP.Credibility, this);
+        // userPtr->createView_update(curVP.Credibility, this);
+        mUsers.modify(userPtr, [&](auto& userItem){
+            userItem.createView_update(curVP.Credibility, this);
+        });
 
         int32_t beforeCreNews_V = mBreakingNews[ID].Cn_V;
         newsItr->Cn_V = _mSysParams.self().rho * newsItr->Cn_V / _mSysParams.self().Coefficient +
@@ -120,6 +121,8 @@ std::string BreakingNews::createViewPoint(platon::u128 ID,
         mVP.emplace([&](auto& vpItem) {
 		    vpItem = curVP;
 		});
+
+        ++mVPCount.self();
     }
     
     if (!isFound)
@@ -180,9 +183,9 @@ std::string BreakingNews::likeNews(platon::u128 newsID)
 
     if (mBreakingNews.contains(newsID))
     {
-        UserInfo* userPtr = _getUser(userAddrStr);
+        auto userPtr = _getUser(userAddrStr);
         //下面这个判断主要是为了调试
-        if (NULL == userPtr)
+        if (mUsers.cend() == userPtr)
         {
             PLATON_EMIT_EVENT1(BNMessage, "like news", "error: NULL when _getUser");
             return "error: NULL when _getUser";
@@ -192,10 +195,10 @@ std::string BreakingNews::likeNews(platon::u128 newsID)
         auto newsItr = &(mBreakingNews[newsID]);
 
         //先消灭disLike中的记录
-        newsItr->cancleDislike(userPtr, this);
+        newsItr->cancleDislike(&(*userPtr), this);
         
         //再插入like列表中，注意查重
-        newsItr->addLike(userPtr, this);
+        newsItr->addLike(&(*userPtr), this);
 
         //判断news该变量是否累积到位
         if ((newsItr->delta_Cn >= _mSysParams.self().News_threshold) ||
@@ -224,9 +227,9 @@ std::string BreakingNews::cancellikeNews(platon::u128 newsID)
 
     if (mBreakingNews.contains(newsID))
     {
-        UserInfo* userPtr = _getUser(userAddrStr);
+        auto userPtr = _getUser(userAddrStr);
         //下面这个判断主要是为了调试
-        if (NULL == userPtr)
+        if (mUsers.cend() == userPtr)
         {
             PLATON_EMIT_EVENT1(BNMessage, "like news", "error: NULL when _getUser");
             return "error: NULL when _getUser";
@@ -235,7 +238,7 @@ std::string BreakingNews::cancellikeNews(platon::u128 newsID)
 
         auto newsItr = &(mBreakingNews[newsID]);
         //消灭Like中的记录
-        newsItr->cancleLike(userPtr, this);
+        newsItr->cancleLike(&(*userPtr), this);
 
         //判断news该变量是否累积到位
         if ((newsItr->delta_Cn >= _mSysParams.self().News_threshold) ||
@@ -263,9 +266,9 @@ std::string BreakingNews::dislikeNews(platon::u128 newsID)
     bool isFound = false;
 
     if (mBreakingNews.contains(newsID)){
-        UserInfo* userPtr = _getUser(userAddrStr);
+        auto userPtr = _getUser(userAddrStr);
         //下面这个判断主要是为了调试
-        if (NULL == userPtr)
+        if (mUsers.cend() == userPtr)
         {
             PLATON_EMIT_EVENT1(BNMessage, "like news", "error: NULL when _getUser");
             return "error: NULL when _getUser";
@@ -275,10 +278,10 @@ std::string BreakingNews::dislikeNews(platon::u128 newsID)
 
         auto newsItr = &(mBreakingNews[newsID]);
         //先消灭Like中的记录
-        newsItr->cancleLike(userPtr, this);
+        newsItr->cancleLike(&(*userPtr), this);
         
         //再插入disLike列表中，注意查重
-        newsItr->addDislike(userPtr, this);
+        newsItr->addDislike(&(*userPtr), this);
 
         //判断news该变量是否累积到位
         if ((newsItr->delta_Cn >= _mSysParams.self().News_threshold) ||
@@ -307,9 +310,9 @@ std::string BreakingNews::canceldislikeNews(platon::u128 newsID)
 
     if (mBreakingNews.contains(newsID))
     {
-        UserInfo* userPtr = _getUser(userAddrStr);
+        auto userPtr = _getUser(userAddrStr);
         //下面这个判断主要是为了调试
-        if (NULL == userPtr)
+        if (mUsers.cend() == userPtr)
         {
             PLATON_EMIT_EVENT1(BNMessage, "like news", "error: NULL when _getUser");
             return "error: NULL when _getUser";
@@ -319,7 +322,7 @@ std::string BreakingNews::canceldislikeNews(platon::u128 newsID)
         
         auto newsItr = &(mBreakingNews[newsID]);
         //先消灭disLike中的记录
-        newsItr->cancleDislike(userPtr, this);
+        newsItr->cancleDislike(&(*userPtr), this);
 
         //判断news该变量是否累积到位
         if ((newsItr->delta_Cn >= _mSysParams.self().News_threshold) ||
@@ -351,9 +354,9 @@ std::string BreakingNews::likeViewpoint(platon::u128 vpID)
     auto vpItr = mVP.find<"VPID"_n>(vpID);
     if (vpItr != mVP.cend())
     {
-        UserInfo* userPtr = _getUser(userAddrStr);
+       auto userPtr = _getUser(userAddrStr);
         //下面这个判断主要是为了调试
-        if (NULL == userPtr)
+        if (mUsers.cend() == userPtr)
         {
             PLATON_EMIT_EVENT1(BNMessage, "like viewpoint", "error: NULL when _getUser");
             return "error: NULL when _getUser";
@@ -377,10 +380,10 @@ std::string BreakingNews::likeViewpoint(platon::u128 vpID)
 
         mVP.modify(vpItr, [&](auto& vpItem){
             //先消灭dislike中的记录
-            vpItem.cancleDislike(userPtr, newsPtr, this);
+            vpItem.cancleDislike(&(*userPtr), newsPtr, this);
 
             //再加入like中的记录
-            vpItem.addLike(userPtr, newsPtr, this);
+            vpItem.addLike(&(*userPtr), newsPtr, this);
         });
 
         //根据ΔCv累积量，判断是否更新相关user
@@ -414,9 +417,9 @@ std::string BreakingNews::cancellikeViewpoint(platon::u128 vpID)
     auto vpItr = mVP.find<"VPID"_n>(vpID);
     if (vpItr != mVP.cend())
     {
-        UserInfo* userPtr = _getUser(userAddrStr);
+        auto userPtr = _getUser(userAddrStr);
         //下面这个判断主要是为了调试
-        if (NULL == userPtr)
+        if (mUsers.cend() == userPtr)
         {
             PLATON_EMIT_EVENT1(BNMessage, "like news", "error: NULL when _getUser");
             return "error: NULL when _getUser";
@@ -436,7 +439,7 @@ std::string BreakingNews::cancellikeViewpoint(platon::u128 vpID)
         // vpItr->cancleLike(userPtr, newsPtr, this);
         mVP.modify(vpItr, [&](auto& vpItem){
             //先消灭like中的记录
-            vpItem.cancleLike(userPtr, newsPtr, this);
+            vpItem.cancleLike(&(*userPtr), newsPtr, this);
         });
 
         //根据ΔCv累积量，判断是否更新相关user
@@ -470,9 +473,9 @@ std::string BreakingNews::dislikeViewpoint(platon::u128 vpID)
     auto vpItr = mVP.find<"VPID"_n>(vpID);
     if (vpItr != mVP.cend())
     {
-        UserInfo* userPtr = _getUser(userAddrStr);
+        auto userPtr = _getUser(userAddrStr);
         //下面这个判断主要是为了调试
-        if (NULL == userPtr)
+        if (mUsers.cend() == userPtr)
         {
             PLATON_EMIT_EVENT1(BNMessage, "like news", "error: NULL when _getUser");
             return "error: NULL when _getUser";
@@ -496,10 +499,10 @@ std::string BreakingNews::dislikeViewpoint(platon::u128 vpID)
 
         mVP.modify(vpItr, [&](auto& vpItem){
             //先消灭Like中的记录
-            vpItem.cancleLike(userPtr, newsPtr, this);
+            vpItem.cancleLike(&(*userPtr), newsPtr, this);
 
             //再加入Dislike中
-            vpItem.addDislike(userPtr, newsPtr, this);
+            vpItem.addDislike(&(*userPtr), newsPtr, this);
         });
 
         //根据ΔCv累积量，判断是否更新相关user
@@ -533,9 +536,9 @@ std::string BreakingNews::canceldislikeViewpoint(platon::u128 vpID)
     auto vpItr = mVP.find<"VPID"_n>(vpID);
     if (vpItr != mVP.cend())
     {
-        UserInfo* userPtr = _getUser(userAddrStr);
+        auto userPtr = _getUser(userAddrStr);
         //下面这个判断主要是为了调试
-        if (NULL == userPtr)
+        if (mUsers.cend() == userPtr)
         {
             PLATON_EMIT_EVENT1(BNMessage, "like news", "error: NULL when _getUser");
             return "error: NULL when _getUser";
@@ -555,7 +558,7 @@ std::string BreakingNews::canceldislikeViewpoint(platon::u128 vpID)
         // vpItr->cancleDislike(userPtr, newsPtr, this);
         mVP.modify(vpItr, [&](auto& vpItem){
             //先消灭like中的记录
-            vpItem.cancleDislike(userPtr, newsPtr, this);
+            vpItem.cancleDislike(&(*userPtr), newsPtr, this);
         });
 
         //根据ΔCv累积量，判断是否更新相关user
@@ -650,6 +653,15 @@ void BreakingNews::clearNews(platon::u128 newsID)
     {
         mBreakingNews.erase(newsID);
     }
+
+    auto normalVPIndexs = mVP.get_index<"NewsID"_n>();
+    auto vpItr = normalVPIndexs.cbegin(newsID);
+    while (vpItr != normalVPIndexs.cend(newsID))
+    {
+        auto tmpItr = vpItr;
+        ++vpItr;
+        normalVPIndexs.erase(tmpItr);
+    }
 }
 
 void BreakingNews::clearViewpoint(platon::u128 vpID)
@@ -672,7 +684,7 @@ BreakingNews::usermi::const_iterator BreakingNews::_getUser(const std::string& u
     auto userItr = mUsers.find<"UserAddress"_n>(userAddr);
     if (userItr != mUsers.cend())
     {
-        return &(*userItr);
+        return userItr;
     }
     
     //没有找到，则创建一个
@@ -686,10 +698,10 @@ BreakingNews::usermi::const_iterator BreakingNews::_getUser(const std::string& u
     });
 
     if (rst.second){
-        return &(*(rst.first));
+        return rst.first;
     }
     else{
-        return NULL;
+        return mUsers.cend();
     }
 }
 
@@ -704,15 +716,9 @@ News* BreakingNews::_getNews(const platon::u128& newsID)
     return NULL;
 }
 
-Viewpoint* BreakingNews::_getViewpoint(const platon::u128& vpID)
+auto BreakingNews::_getViewpoint(const platon::u128& vpID)
 {
-    auto vpItr = mVP.find<"VPID"_n>(vpID);
-    if (vpItr != mVP.cend())
-    {
-        return &(*vpItr);
-    }
-
-    return NULL;    //后续有空都改成nullptr
+    return mVP.find<"VPID"_n>(vpID);
 }
 
 sysParams* BreakingNews::_getSysParams()
@@ -728,7 +734,7 @@ void BreakingNews::_emit_bnmessage_event(const std::string& topic, const std::st
 //////////////////////////////////////////////////////////////////////////
 //News
 //在以下接口中，会改变news可信度
-void News::addLike(UserInfo* userPtr, BreakingNews* bnPtr)
+void News::addLike(const UserInfo* userPtr, BreakingNews* bnPtr)
 {
 	//再插入like列表中，注意查重
 	auto sameItr = msgUp.begin();
@@ -754,7 +760,7 @@ void News::addLike(UserInfo* userPtr, BreakingNews* bnPtr)
 	}
 }
 
-void News::cancleLike(UserInfo* userPtr, BreakingNews* bnPtr)
+void News::cancleLike(const UserInfo* userPtr, BreakingNews* bnPtr)
 {
 	//消灭Like中的记录
 	auto LikeItr = msgUp.begin();
@@ -775,7 +781,7 @@ void News::cancleLike(UserInfo* userPtr, BreakingNews* bnPtr)
 	}
 }
 
-void News::addDislike(UserInfo* userPtr, BreakingNews* bnPtr)
+void News::addDislike(const UserInfo* userPtr, BreakingNews* bnPtr)
 {
 	//再插入disLike列表中，注意查重
 	auto sameItr = msgDown.begin();
@@ -801,7 +807,7 @@ void News::addDislike(UserInfo* userPtr, BreakingNews* bnPtr)
 	}
 }
 
-void News::cancleDislike(UserInfo* userPtr, BreakingNews* bnPtr)
+void News::cancleDislike(const UserInfo* userPtr, BreakingNews* bnPtr)
 {
 	auto dislikeItr = msgDown.begin();
 	while (dislikeItr != msgDown.end())
@@ -845,45 +851,54 @@ void News::updateNews(BreakingNews* bnPtr)
     
     //更新user，只更新跟news直接相关的user
     //author
-    UserInfo* authorPtr = bnPtr->_getUser(msgauthorAddress);
+    auto authorPtr = bnPtr->_getUser(msgauthorAddress);
     //下面这个判断主要是为了调试
-    if (NULL == authorPtr)
+    if (bnPtr->mUsers.cend() == authorPtr)
     {
         bnPtr->_emit_bnmessage_event("updateNews", "error: NULL when _getUser");
         return;
     }
-    authorPtr->delta_News_updata_author(delta_Cn, bnPtr);
+    // authorPtr->delta_News_updata_author(delta_Cn, bnPtr);
+    bnPtr->mUsers.modify(authorPtr, [&](auto& authorItem){
+        authorItem.delta_News_updata_author(delta_Cn, bnPtr);
+    });
 
     //up users
     for (auto userAddrItr = msgUp.begin(); userAddrItr != msgUp.end(); ++userAddrItr)
     {
-        UserInfo* userPtr = bnPtr->_getUser(*userAddrItr);
+        auto userPtr = bnPtr->_getUser(*userAddrItr);
         //下面这个判断主要是为了调试
-        if (NULL == userPtr)
+        if (bnPtr->mUsers.cend() == userPtr)
         {
             bnPtr->_emit_bnmessage_event("updateNews", "error: NULL when _getUser");
             return;
         }
-        userPtr->delta_News_update_up_down(delta_Cn, 1, bnPtr);
+        // userPtr->delta_News_update_up_down(delta_Cn, 1, bnPtr);
+        bnPtr->mUsers.modify(userPtr, [&](auto& userItem){
+            userItem.delta_News_update_up_down(delta_Cn, 1, bnPtr);
+        });
     }
 
     //down users
     for (auto userAddrItr = msgDown.begin(); userAddrItr != msgDown.end(); ++userAddrItr)
     {
-        UserInfo* userPtr = bnPtr->_getUser(*userAddrItr);
+        auto userPtr = bnPtr->_getUser(*userAddrItr);
         //下面这个判断主要是为了调试
-        if (NULL == userPtr)
+        if (bnPtr->mUsers.cend() == userPtr)
         {
             bnPtr->_emit_bnmessage_event("updateNews", "error: NULL when _getUser");
             return;
         }
-        userPtr->delta_News_update_up_down(delta_Cn, -1, bnPtr);
+        // userPtr->delta_News_update_up_down(delta_Cn, -1, bnPtr);
+        bnPtr->mUsers.modify(userPtr, [&](auto& userItem){
+            userItem.delta_News_update_up_down(delta_Cn, -1, bnPtr);
+        });
     }
 
     delta_Cn = 0;
 }
 
-void News::up_down_CreUpdate(UserInfo* userPtr, int32_t coe, BreakingNews* bnPtr)
+void News::up_down_CreUpdate(const UserInfo* userPtr, int32_t coe, BreakingNews* bnPtr)
 {
     sysParams* spPtr = bnPtr->_getSysParams();
 
@@ -901,7 +916,7 @@ void News::up_down_CreUpdate(UserInfo* userPtr, int32_t coe, BreakingNews* bnPtr
 //////////////////////////////////////////////////////////////////////////
 //Viewpoints
 //在以下接口中，会改变VP可信度
-void Viewpoint::addLike(UserInfo* userPtr, News* newsPtr, BreakingNews* bnPtr)
+void Viewpoint::addLike(const UserInfo* userPtr, News* newsPtr, BreakingNews* bnPtr)
 {
 	//再插入like列表中，注意查重
 	auto sameItr = msgUp.begin();
@@ -927,7 +942,7 @@ void Viewpoint::addLike(UserInfo* userPtr, News* newsPtr, BreakingNews* bnPtr)
 	}
 }
 
-void Viewpoint::cancleLike(UserInfo* userPtr, News* newsPtr, BreakingNews* bnPtr)
+void Viewpoint::cancleLike(const UserInfo* userPtr, News* newsPtr, BreakingNews* bnPtr)
 {
 	//消灭Like中的记录
 	auto LikeItr = msgUp.begin();
@@ -948,7 +963,7 @@ void Viewpoint::cancleLike(UserInfo* userPtr, News* newsPtr, BreakingNews* bnPtr
 	}
 }
 
-void Viewpoint::addDislike(UserInfo* userPtr, News* newsPtr, BreakingNews* bnPtr)
+void Viewpoint::addDislike(const UserInfo* userPtr, News* newsPtr, BreakingNews* bnPtr)
 {
 	//再插入disLike列表中，注意查重
 	auto sameItr = msgDown.begin();
@@ -974,7 +989,7 @@ void Viewpoint::addDislike(UserInfo* userPtr, News* newsPtr, BreakingNews* bnPtr
 	}
 }
 
-void Viewpoint::cancleDislike(UserInfo* userPtr, News* newsPtr, BreakingNews* bnPtr)
+void Viewpoint::cancleDislike(const UserInfo* userPtr, News* newsPtr, BreakingNews* bnPtr)
 {
 	auto dislikeItr = msgDown.begin();
 	while (dislikeItr != msgDown.end())
@@ -993,7 +1008,7 @@ void Viewpoint::cancleDislike(UserInfo* userPtr, News* newsPtr, BreakingNews* bn
 	}
 }
 
-void Viewpoint::up_down_CreUpdate(UserInfo* userPtr, News* newsPtr, int32_t coe, BreakingNews* bnPtr)
+void Viewpoint::up_down_CreUpdate(const UserInfo* userPtr, News* newsPtr, int32_t coe, BreakingNews* bnPtr)
 {
     sysParams* spPtr = bnPtr->_getSysParams();
 
@@ -1014,39 +1029,48 @@ void Viewpoint::updateView(BreakingNews* bnPtr)
 {
     //update related users
     //author
-    UserInfo* authorPtr = bnPtr->_getUser(msgauthorAddress);
+    auto authorPtr = bnPtr->_getUser(msgauthorAddress);
     //下面这个判断主要是为了调试
-    if (NULL == authorPtr)
+    if (bnPtr->mUsers.cend() == authorPtr)
     {
         bnPtr->_emit_bnmessage_event("updateView", "error: NULL when _getUser");
         return;
     }
-    authorPtr->delta_View_updata_author(delta_Cv, bnPtr);
+    // authorPtr->delta_View_updata_author(delta_Cv, bnPtr);
+    bnPtr->mUsers.modify(authorPtr, [&](auto& authorItem){
+        authorItem.delta_View_updata_author(delta_Cv, bnPtr);
+    });
 
     //up
     for (auto userAddrItr = msgUp.begin(); userAddrItr != msgUp.end(); ++userAddrItr)
     {
-        UserInfo* userPtr = bnPtr->_getUser(*userAddrItr);
+        auto userPtr = bnPtr->_getUser(*userAddrItr);
         //下面这个判断主要是为了调试
-        if (NULL == userPtr)
+        if (bnPtr->mUsers.cend() == userPtr)
         {
             bnPtr->_emit_bnmessage_event("updateView", "error: NULL when _getUser");
             return;
         }
-        userPtr->delta_View_update_up_down(delta_Cv, 1, bnPtr);
+        // userPtr->delta_View_update_up_down(delta_Cv, 1, bnPtr);
+        bnPtr->mUsers.modify(userPtr, [&](auto& userItem){
+            userItem.delta_View_update_up_down(delta_Cv, 1, bnPtr);
+        });
     }
 
     //down
     for (auto userAddrItr = msgDown.begin(); userAddrItr != msgDown.end(); ++userAddrItr)
     {
-        UserInfo* userPtr = bnPtr->_getUser(*userAddrItr);
+        auto userPtr = bnPtr->_getUser(*userAddrItr);
         //下面这个判断主要是为了调试
-        if (NULL == userPtr)
+        if (bnPtr->mUsers.cend() == userPtr)
         {
             bnPtr->_emit_bnmessage_event("updateView", "error: NULL when _getUser");
             return;
         }
-        userPtr->delta_View_update_up_down(delta_Cv, -1, bnPtr);
+        // userPtr->delta_View_update_up_down(delta_Cv, -1, bnPtr);
+        bnPtr->mUsers.modify(userPtr, [&](auto& userItem){
+            userItem.delta_View_update_up_down(delta_Cv, -1, bnPtr);
+        });
     }
 
     delta_Cv = 0;
