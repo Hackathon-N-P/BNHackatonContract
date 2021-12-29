@@ -215,6 +215,9 @@ public:
 
     CONST std::string getOwner();
 
+    ACTION void setApprover(const std::string& approverAddress);
+    CONST std::string getApprover(){return _mApprover.self().first.toString();}
+
     ACTION std::string createNews(const std::string& title,
                                   const std::string& content, 
                                   std::vector<std::string>& image, 
@@ -225,6 +228,19 @@ public:
                                 std::vector<std::string>& image,
                                 bool isSupported,
                                 const std::string& createTime);
+
+    ACTION void approveNews(const std::string& title,
+                                  const std::string& content, 
+                                  std::vector<std::string>& image, 
+                                  const std::string& createTime,
+                                  const std::string& authorAddress);
+
+    ACTION void approveViewpoint(platon::u128 ID,
+                                const std::string& content,
+                                std::vector<std::string>& image,
+                                bool isSupported,
+                                const std::string& createTime,
+                                const std::string& authorAddress);
 
     CONST std::list<UserInfo> getUsers();
 
@@ -300,8 +316,17 @@ public:
 		platon::db::IndexType::NormalIndex>>>                               mVP;                //用于存放观点，观点单独存，便于查找
 
 private:
-    platon::StorageType<"Owner"_n, std::pair<platon::Address, bool>>       _mOwner;            //合约所有者地址，即部署者，黑客松中留个特殊权限
-    platon::StorageType<"sysParam"_n, sysParams>                           _mSysParams;        //系统参数
+    platon::StorageType<"Owner"_n, std::pair<platon::Address, bool>>       _mOwner;             //合约所有者地址，即部署者，黑客松中留个特殊权限
+    platon::StorageType<"Approver"_n, std::pair<platon::Address, bool>>    _mApprover;          //身披者地址，审批合约
+    platon::StorageType<"sysParam"_n, sysParams>                           _mSysParams;         //系统参数
 };
 
-PLATON_DISPATCH(BreakingNews, (init)(getOwner)(createNews)(createViewPoint)(getUsers)(getNews)(likeNews)(cancellikeNews)(dislikeNews)(canceldislikeNews)(likeViewpoint)(cancellikeViewpoint)(dislikeViewpoint)(canceldislikeViewpoint)(checkNews)(clear)(clearNews)(clearViewpoint))
+PLATON_DISPATCH(BreakingNews, (init)
+(getOwner)
+(createNews)(createViewPoint)
+(approveNews)(approveViewpoint)
+(getUsers)(getNews)
+(likeNews)(cancellikeNews)(dislikeNews)(canceldislikeNews)
+(likeViewpoint)(cancellikeViewpoint)(dislikeViewpoint)(canceldislikeViewpoint)
+(checkNews)
+(clear)(clearNews)(clearViewpoint))

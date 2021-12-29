@@ -14,17 +14,111 @@ std::string BreakingNews::getOwner()
     return platon::encode(_mOwner.self().first, hrp);
 }
 
+void BreakingNews::setApprover(const std::string& approverAddress)
+{
+    auto userAddress = platon::platon_origin();
+    if (_mOwner.self().first != userAddress)
+    {
+        PLATON_EMIT_EVENT1(BNMessage, "setApprover" , "Unauthorized");
+        return;
+    }
+
+    auto approverAddr = platon::make_address(approverAddress);
+    if (approverAddr.second)
+    {
+        _mApprover.self() = approverAddr;
+        PLATON_EMIT_EVENT1(BNMessage, "setApprover" , "success");
+    }
+    else{
+        PLATON_EMIT_EVENT1(BNMessage, "setApprover" , "Invalid input!");
+    }
+}
+
 std::string BreakingNews::createNews(const std::string& title,
                                   const std::string& content, 
                                   std::vector<std::string>& image, 
                                   const std::string& createTime)
 {
+    auto userAddress = platon::platon_origin();
+    auto userAddrStr = platon::encode(userAddress, hrp);
+
+    if (!_mApprover.self().second)
+    {
+        PLATON_EMIT_EVENT1(BNMessage, "createNews" , "Invalid Approver Address!");
+        return "failed";
+    }
+    
+    auto result = platon::platon_call(_mApprover.self().first, (unsigned int)(0), (unsigned int)(0), "createNewsDraft", 
+                                                                    title, 
+                                                                    content, 
+                                                                    image,
+                                                                    createTime, 
+                                                                    userAddrStr);
+
+    if (result)
+    {
+        PLATON_EMIT_EVENT1(BNMessage, "createNews" , "success!");
+        return "success";
+    }
+    else{
+        PLATON_EMIT_EVENT1(BNMessage, "createNews" , "Cross contract call failed!");
+        return "failed";
+    }
+}
+
+std::string BreakingNews::createViewPoint(platon::u128 ID,
+                                const std::string& content,
+                                std::vector<std::string>& image,
+                                bool isSupported,
+                                const std::string& createTime)
+{
+    auto userAddress = platon::platon_origin();
+    auto userAddrStr = platon::encode(userAddress, hrp);
+
+    if (!_mApprover.self().second)
+    {
+        PLATON_EMIT_EVENT1(BNMessage, "createViewPoint" , "Invalid Approver Address!");
+        return "failed";
+    }
+
+    auto result = platon::platon_call(_mApprover.self().first, (unsigned int)(0), (unsigned int)(0), "createViewPointDraft", 
+                                                                    ID, 
+                                                                    content, 
+                                                                    image, 
+                                                                    isSupported, 
+                                                                    createTime, 
+                                                                    userAddrStr);
+
+    if (result)
+    {
+        PLATON_EMIT_EVENT1(BNMessage, "createViewPoint" , "success!");
+        return "success";
+    }
+    else{
+        PLATON_EMIT_EVENT1(BNMessage, "createViewPoint" , "Cross contract call failed!");
+        return "failed";
+    }
+}
+
+void BreakingNews::approveNews(const std::string& title,
+                                  const std::string& content, 
+                                  std::vector<std::string>& image, 
+                                  const std::string& createTime,
+                                  const std::string& authorAddress)
+{
+    // judge caller
+    auto callerAddress = platon::platon_caller();
+    if (callerAddress != _mApprover.self().first)
+    {
+        PLATON_EMIT_EVENT1(BNMessage, "approveNews" , "Invalid approver!");
+        return;
+    }
+    
     //insert news
     News curNews;
     curNews.NewTitle = title;
     curNews.NewID = mNewsCount.self();
-    auto authorAddress = platon::platon_origin();
-    curNews.msgauthorAddress = platon::encode(authorAddress, hrp);
+    curNews.msgauthorAddress = authorAddress;
     curNews.msgContent = content;
     curNews.msgImages = image;
     curNews.BlockNumber = platon_block_number();
@@ -37,7 +131,7 @@ std::string BreakingNews::createNews(const std::string& title,
     if (mUsers.cend() == userPtr)
     {
         PLATON_EMIT_EVENT1(AddNews, "Error: NULL when _getUser", curNews);
-        return "error";
+        return;
     }
     //后续加入计算News可信度的代码
     /***********************************/
@@ -53,16 +147,23 @@ std::string BreakingNews::createNews(const std::string& title,
     PLATON_EMIT_EVENT1(AddNews, "Create News" , curNews);
 
     ++mNewsCount.self();
-
-    return "success";
 }
 
-std::string BreakingNews::createViewPoint(platon::u128 ID,
+void BreakingNews::approveViewpoint(platon::u128 ID,
                                 const std::string& content,
                                 std::vector<std::string>& image,
                                 bool isSupported,
-                                const std::string& createTime)
+                                const std::string& createTime,
+                                const std::string& authorAddress)
 {
+    // judge caller
+    auto callerAddress = platon::platon_caller();
+    if (callerAddress != _mApprover.self().first)
+    {
+        PLATON_EMIT_EVENT1(BNMessage, "approveViewpoint" , "Invalid approver!");
+        return;
+    }
+
     //先判断news是否存在
     bool isFound = false;
 
@@ -75,8 +176,7 @@ std::string BreakingNews::createViewPoint(platon::u128 ID,
         curVP.point = isSupported;
         curVP.ViewpointID = mVPCount.self();
         curVP.NewID = ID;
-        auto authorAddress = platon::platon_origin();
-        curVP.msgauthorAddress = platon::encode(authorAddress, hrp);
+        curVP.msgauthorAddress = authorAddress;
         curVP.msgContent = content;
         curVP.msgImages = image;
         curVP.BlockNumber = platon_block_number();
@@ -89,7 +189,7 @@ std::string BreakingNews::createViewPoint(platon::u128 ID,
         if (mUsers.cend() == userPtr)
         {
             PLATON_EMIT_EVENT1(BNMessage, "Create Viewpoint", "error: NULL when _getUser");
-            return "error: NULL when _getUser!";
+            return;
         }
         //后续加入计算vp可信度、Viewpoint影响News可信度的代码
         /***********************************/
@@ -128,11 +228,10 @@ std::string BreakingNews::createViewPoint(platon::u128 ID,
     if (!isFound)
     {
         PLATON_EMIT_EVENT1(BNMessage, "Create Viewpoint" , "error: news not found!");
-        return "error: news not found!";
+        return;
     }
 
     PLATON_EMIT_EVENT1(BNMessage, "Create Viewpoint" , "success");
-    return "success";
 }
 
 std::list<UserInfo> BreakingNews::getUsers()
