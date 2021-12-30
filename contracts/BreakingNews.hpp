@@ -323,6 +323,7 @@ private:
 
 PLATON_DISPATCH(BreakingNews, (init)
 (getOwner)
+(setApprover)(getApprover)
 (createNews)(createViewPoint)
 (approveNews)(approveViewpoint)
 (getUsers)(getNews)
