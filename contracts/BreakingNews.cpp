@@ -16,7 +16,8 @@ std::string BreakingNews::getOwner()
 
 void BreakingNews::setApprover(const std::string& approverAddress)
 {
-    auto userAddress = platon::platon_origin();
+    // The caller might be the multisigner
+    auto userAddress = platon::platon_caller();
     if (_mOwner.self().first != userAddress)
     {
         PLATON_EMIT_EVENT1(BNMessage, "setApprover" , "Unauthorized");
@@ -703,7 +704,7 @@ bool BreakingNews::checkNews()
 //删帖
 void BreakingNews::clear()
 {
-    auto userAddress = platon::platon_origin();
+    auto userAddress = platon::platon_caller();
     if (_mOwner.self().first != userAddress)
     {
         return;
@@ -742,7 +743,7 @@ void BreakingNews::clear()
 
 void BreakingNews::clearNews(platon::u128 newsID)
 {
-    auto userAddress = platon::platon_origin();
+    auto userAddress = platon::platon_caller();
     if (_mOwner.self().first != userAddress)
     {
         return;
@@ -765,7 +766,7 @@ void BreakingNews::clearNews(platon::u128 newsID)
 
 void BreakingNews::clearViewpoint(platon::u128 vpID)
 {
-    auto userAddress = platon::platon_origin();
+    auto userAddress = platon::platon_caller();
     if (_mOwner.self().first != userAddress)
     {
         return;
